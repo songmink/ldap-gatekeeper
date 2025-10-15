@@ -7,6 +7,7 @@ class Guard {
         add_action( 'template_redirect', [ __CLASS__, 'maybe_gate' ], 1 );
         add_action( 'init', [ __CLASS__, 'routes' ] );
         add_action( 'admin_post_nopriv_lg_login', [ __CLASS__, 'handle_login' ] );
+        add_action( 'admin_post_lg_login', [ __CLASS__, 'handle_login' ] );
         add_action( 'admin_post_lg_logout', [ __CLASS__, 'handle_logout' ] );
     }
     public static function routes() {}
