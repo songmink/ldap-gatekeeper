@@ -34,5 +34,19 @@
         <div class="lg-footer"><?php esc_html_e('To override, copy this file to your theme:','ldap-gatekeeper'); ?><br><code>yourtheme/ldap-gatekeeper/login-form.php</code></div>
     </div>
     <?php wp_footer(); ?>
+    <script>
+        window.addEventListener('pageshow', function (event) {
+            if (document.cookie.includes('lg_session=')) {
+                if (event.persisted) {
+                    window.history.go(-1);
+                } else {
+                    const params = new URLSearchParams(window.location.search);
+                    if (!params.has('lg_err')) {
+                    window.location.href = window.location.origin;
+                    }
+                }
+            }
+        });
+    </script>
 </body>
 </html>
