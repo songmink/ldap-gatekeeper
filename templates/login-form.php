@@ -37,14 +37,14 @@
     <script>
         window.addEventListener('pageshow', function (event) {
             if (document.cookie.includes('lg_session=')) {
-            if (event.persisted) {
-                window.history.go(-1);
-            } else {
-                const params = new URLSearchParams(window.location.search);
-                if (!params.has('lg_err')) {
-                window.location.href = window.location.origin;
+                if (event.persisted) {
+                    window.history.go(-1);
+                } else {
+                    const params = new URLSearchParams(window.location.search);
+                    if (!params.has('lg_err')) {
+                    window.location.href = window.location.origin;
+                    }
                 }
-            }
             }
         });
     </script>
