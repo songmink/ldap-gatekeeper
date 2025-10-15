@@ -1,0 +1,1 @@
+(function($){$(document).ready(function(){console.log('LDAP Gatekeeper admin script loaded.');});})(jQuery);
