@@ -1,7 +1,7 @@
 # LDAP Gatekeeper (WordPress plugin)
 
 **Description:** Page-level LDAP gate with plugin-managed session and clean redirects  
-**Author:** Center for Language and Technology with ChatGPT 5  
+**Author:** Songmin Kim with ChatGPT 5  
 **Version:** 0.2.5
 
 ## What it does
