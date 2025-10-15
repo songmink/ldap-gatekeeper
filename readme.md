@@ -1,35 +1,31 @@
-# LDAP Gatekeeper (WordPress plugin)
+# LDAP Gatekeeper (WordPress)
 
 **Description:** Page-level LDAP gate with plugin-managed session and clean redirects  
-**Author:** Center for Language and Technology with ChatGPT 5  
-**Version:** 0.2.5
+**Author:** Songmin Kim with ChatGPT 5  
+**Version:** 0.2.6
 
-## What it does
-- Protect **specific pages** with LDAP authentication (no WordPress user login).
-- On success, the plugin issues its **own session cookie** and redirects back to the original page.
-- Session duration is configurable (in minutes) in **Settings → LDAP Gatekeeper**.
-- Includes a **Connection Test** tool with live logs.
+## What's new in 0.2.6
+- Environment-aware TLS: in `staging/development`, TLS cert validation is relaxed; in `production`, strict validation is enforced.
+- TLS 1.2+ enforced, SNI/hostname hint + CA bundle path hints added for Debian/TurnKey compatibility.
 
 ## Quick Start
 1. Install & activate the plugin.
-2. Go to **Settings → LDAP Gatekeeper**, configure your LDAP server (host, port, encryption, base DN, bind DN/pw, filter).
-3. Edit a page and check **“Require LDAP login for this page”** in the sidebar.
-4. Visit that page to see the **LDAP login form**.
+2. Settings → LDAP Gatekeeper: configure host/port/encryption, base DN, bind DN/pw, search filter.
+3. Edit a page → check “Require LDAP login for this page.”
+4. Visit that page → LDAP login form appears; on success you return to the intended page.
 
-## Customize the login template
-Copy the bundled template to your theme to override the design:
+## Override login template
+Copy the template to your theme:
 ```
 yourtheme/ldap-gatekeeper/login-form.php
 ```
 
-## Testing
-Use the **Connection Test** at the bottom of the settings page.  
-- Logs auto-refresh when you open the settings page.  
-- You can also click **Clear Test Log**.
+## Environment type
+WordPress 5.5+ supports `WP_ENVIRONMENT_TYPE`. Set in `wp-config.php`:
+```php
+define( 'WP_ENVIRONMENT_TYPE', 'staging' ); // or 'production', 'development', 'local'
+```
 
 ## Notes
-- The plugin does **not** use WordPress user accounts or `wp-login.php`.
-- Sessions are stored in WordPress transients and identified via a secure cookie.
-
-## License
-MIT (or match your project’s license).
+- No WordPress user login is performed; the plugin manages its own session cookie.
+- Connection Test includes a live log and a “Clear Test Log” button.

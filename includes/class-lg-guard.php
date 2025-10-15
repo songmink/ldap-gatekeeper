@@ -38,7 +38,6 @@ class Guard {
         }
     }
     private static function clean_url( $url ) {
-        // Strip lg_err from query on success
         return remove_query_arg( 'lg_err', $url );
     }
     public static function maybe_gate() {
@@ -56,7 +55,6 @@ class Guard {
         exit;
     }
     public static function render_login( $error = '' ) {
-        // Intended URL (strip lg_err if present)
         $scheme = is_ssl() ? 'https://' : 'http://';
         $host = $_SERVER['HTTP_HOST'] ?? '';
         $uri  = $_SERVER['REQUEST_URI'] ?? '/';
@@ -82,7 +80,6 @@ class Guard {
             exit;
         }
         self::set_session( [ 'user' => [ 'login' => $res['login'], 'email' => $res['email'], 'dn' => $res['dn'] ], 'ts' => time() ] );
-        // On success, always clean lg_err from URL
         wp_safe_redirect( self::clean_url( $redirect ) );
         exit;
     }

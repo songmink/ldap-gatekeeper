@@ -69,7 +69,6 @@ class Admin {
     }
     public static function render() {
         echo '<div class="wrap"><h1>'.esc_html__('LDAP Gatekeeper','ldap-gatekeeper').'</h1>';
-        // Callout at top about overriding template
         echo '<div class="lg-callout"><strong>'.esc_html__('Override Login Template','ldap-gatekeeper').':</strong> ';
         echo esc_html__('Copy the template to your theme to customize:', 'ldap-gatekeeper').' ';
         echo '<code>yourtheme/ldap-gatekeeper/login-form.php</code></div>';
@@ -90,7 +89,6 @@ class Admin {
         echo '</tbody></table>'; submit_button( __( 'Run Test', 'ldap-gatekeeper' ) ); echo '</form>';
 
         echo '<h3 style="margin-top:16px">'.esc_html__('Test Log','ldap-gatekeeper').'</h3>';
-        // Clear button just under the "Test Log" header
         echo '<div class="lg-actions" style="margin-top:0;margin-bottom:8px;">';
         echo '<form method="post" action="'.esc_url(admin_url('admin-post.php')).'">';
         \wp_nonce_field('lg_clearlog');

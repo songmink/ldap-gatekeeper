@@ -18,20 +18,51 @@ class Auth {
         $port = (int)($this->opts['ldap_port'] ?? 389);
         $enc  = $this->opts['ldap_encryption'] ?? 'none';
 
-        // Accept full URI or host:port
-        if ( stripos($host, 'ldap://') === 0 || stripos($host, 'ldaps://') === 0 ) {
-            $this->log('info','Using URI: '.$host);
-            $this->conn = @ldap_connect( $host );
+        // Normalize hostname (SNI hint); allow full URI in settings
+        $hostname = preg_replace('#^ldaps?://#i', '', trim($host));
+        $hostname = preg_replace('#:\d+$#', '', $hostname);
+
+        // 1) Connect (ldaps prefers URI for SNI/verification stability)
+        if ( $enc === 'ldaps' ) {
+            $uri = (stripos($host, 'ldaps://') === 0) ? $host : ('ldaps://' . $hostname);
+            $this->log('info', 'Connecting via LDAPS URI: ' . $uri);
+            $this->conn = @ldap_connect( $uri );
         } else {
-            if ( $enc === 'ldaps' && stripos($host, 'ldaps://') !== 0 ) $host = 'ldaps://' . $host;
-            $this->conn = @ldap_connect( $host, $port );
+            $this->log('info', 'Connecting to host: ' . $hostname . ' port: ' . $port);
+            $this->conn = @ldap_connect( $hostname, $port );
         }
         if ( ! $this->conn ) return new \WP_Error('ldap_connect_fail', __('Unable to connect to LDAP host.', 'ldap-gatekeeper'));
 
+        // 2) TLS/global options
+        $env = function_exists('wp_get_environment_type') ? wp_get_environment_type() : 'production';
+        $this->log('info', 'Environment: ' . $env);
+
+        // Minimum TLS version: 1.2 (OpenLDAP value 3)
+        @ldap_set_option(NULL, LDAP_OPT_X_TLS_PROTOCOL_MIN, 3);
+        // System CA bundle hints (Debian/Ubuntu). RHEL-family will still pass since CACERTFILE is a superset.
+        @ldap_set_option(NULL, LDAP_OPT_X_TLS_CACERTFILE, '/etc/ssl/certs/ca-certificates.crt');
+        @ldap_set_option(NULL, LDAP_OPT_X_TLS_CACERTDIR,  '/etc/ssl/certs');
+
+        // SNI / hostname hint (some libldap builds need this)
+        if ( defined('LDAP_OPT_X_TLS_HOSTNAME') ) {
+            @ldap_set_option($this->conn, LDAP_OPT_X_TLS_HOSTNAME, $hostname);
+        }
+
+        // Stage/dev only: relax certificate requirement for troubleshooting
+        if ( in_array($env, ['staging','development'], true) ) {
+            @ldap_set_option($this->conn, LDAP_OPT_X_TLS_REQUIRE_CERT, LDAP_OPT_X_TLS_NEVER);
+            $this->log('info', 'TLS cert validation disabled for non-production.');
+        } else {
+            @ldap_set_option($this->conn, LDAP_OPT_X_TLS_REQUIRE_CERT, LDAP_OPT_X_TLS_DEMAND);
+            $this->log('info', 'TLS cert validation required in production.');
+        }
+
+        // Standard options
         ldap_set_option( $this->conn, LDAP_OPT_PROTOCOL_VERSION, 3 );
         ldap_set_option( $this->conn, LDAP_OPT_REFERRALS, (int)($this->opts['ldap_referrals'] ?? 0) );
         if ( ! empty($this->opts['ldap_timeout']) ) @ldap_set_option( $this->conn, LDAP_OPT_NETWORK_TIMEOUT, (int)$this->opts['ldap_timeout'] );
 
+        // 3) STARTTLS if requested
         if ( $enc === 'starttls' ) {
             $this->log('info','STARTTLS handshake');
             if ( ! @ldap_start_tls( $this->conn ) ) {
@@ -40,6 +71,7 @@ class Auth {
             }
         }
 
+        // 4) Service bind
         $bind_dn = $this->opts['ldap_bind_dn'] ?? '';
         $bind_pw = $this->opts['ldap_bind_pw'] ?? '';
         if ( $bind_dn ) {
@@ -65,7 +97,6 @@ class Auth {
         $base = $this->opts['ldap_base_dn'] ?? '';
         $attr = $this->opts['ldap_search_attr'] ?? 'uid';
         $filter_tpl = $this->opts['ldap_filter'] ?? '(%attr%=%s)';
-        // Support %attr%, %s, and %u placeholders
         $user_escaped = function_exists('ldap_escape') ? ldap_escape($username, '', LDAP_ESCAPE_FILTER) : addslashes($username);
         $filter = str_replace(['%attr%','%s','%u'], [$attr, $user_escaped, $user_escaped], $filter_tpl);
         $this->log('info','Search filter: '.$filter);
