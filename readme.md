@@ -31,5 +31,16 @@ Use the **Connection Test** at the bottom of the settings page.
 - The plugin does **not** use WordPress user accounts or `wp-login.php`.
 - Sessions are stored in WordPress transients and identified via a secure cookie.
 
+## Theme Compatibility Notes
+
+### Using Divi or Similar Visual Builder Themes
+- Divi’s **Dynamic CSS** and **Static CSS File Generation** features can conflict with LDAP-gated pages that issue redirects or non-200 responses (such as login forms).
+- When using **Divi**:
+  - Set **Dynamic CSS** to **Disabled** under  
+    *Divi → Theme Options → General → Performance → Dynamic CSS*.
+  - Clear the Divi builder cache after making this change.
+- Avoid programmatically controlling Divi’s CSS system from this plugin. Future Divi updates may alter hooks and cause unexpected errors.
+- Similar builder frameworks (Elementor Pro, Avada, etc.) may require comparable adjustments when using page-level LDAP gating.
+
 ## License
 MIT (or match your project’s license).
