@@ -11,6 +11,9 @@ class Admin {
         add_action( 'admin_enqueue_scripts', [ __CLASS__, 'assets' ] );
         add_action( 'admin_post_lg_test', [ __CLASS__, 'handle_test' ] );
         add_action( 'admin_post_lg_clearlog', [ __CLASS__, 'handle_clearlog' ] );
+
+        add_action( 'admin_post_lg_kill_sess', [ __CLASS__, 'handle_kill_sess' ] );
+        add_action( 'admin_post_lg_kill_all',  [ __CLASS__, 'handle_kill_all'  ] );
     }
     public static function menu() {
         add_options_page( __( 'LDAP Gatekeeper', 'ldap-gatekeeper' ), __( 'LDAP Gatekeeper', 'ldap-gatekeeper' ), 'manage_options', 'lg-settings', [ __CLASS__, 'render' ] );
@@ -109,6 +112,84 @@ class Admin {
         }
         echo '</div>';
         echo '</div>';
+
+        echo '<hr><h2>'.esc_html__('Active LDAP Sessions','ldap-gatekeeper').'</h2>';
+        echo '<p>'.esc_html__('These sessions are managed by the plugin (not WordPress login). Forcing logout deletes the server-side session; user cookies will become invalid.','ldap-gatekeeper').'</p>';
+
+        echo '<div class="lg-actions" style="display:flex;gap:8px;align-items:center;margin:8px 0 16px 0;">';
+        // Refresh
+        echo '<form method="get" action="'.esc_url(admin_url('options-general.php')).'">';
+        echo '<input type="hidden" name="page" value="lg-settings">';
+        echo '<button class="button">'.esc_html__('Refresh','ldap-gatekeeper').'</button>';
+        echo '</form>';
+        // Force logout all
+        echo '<form method="post" action="'.esc_url(admin_url('admin-post.php')).'">';
+        wp_nonce_field('lg_kill_all');
+        echo '<input type="hidden" name="action" value="lg_kill_all">';
+        submit_button( __( 'Force Logout All', 'ldap-gatekeeper' ), 'delete', '', false );
+        echo '</form>';
+        echo '</div>';
+
+        global $wpdb;
+        $like = $wpdb->esc_like('_transient_lg_sess_') . '%';
+        $rows = $wpdb->get_results(
+        $wpdb->prepare("SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s ORDER BY option_id DESC", $like)
+        );
+
+        if ( $rows ) {
+        echo '<table class="widefat striped" style="max-width:980px;"><thead><tr>';
+        echo '<th>'.esc_html__('User','ldap-gatekeeper').'</th>';
+        echo '<th>'.esc_html__('DN','ldap-gatekeeper').'</th>';
+        echo '<th>'.esc_html__('IP / UA','ldap-gatekeeper').'</th>';
+        echo '<th>'.esc_html__('Started','ldap-gatekeeper').'</th>';
+        echo '<th>'.esc_html__('Expires In','ldap-gatekeeper').'</th>';
+        echo '<th></th>';
+        echo '</tr></thead><tbody>';
+
+        foreach ( $rows as $r ) {
+            $name  = $r->option_name; // _transient_lg_sess_<token>
+            $token = substr( $name, strlen('_transient_lg_sess_') );
+            $data  = maybe_unserialize( $r->option_value );
+            if ( ! is_array($data) || empty($data['user']) ) continue;
+
+            $login = esc_html( $data['user']['login'] ?? '' );
+            $email = esc_html( $data['user']['email'] ?? '' );
+            $dn    = esc_html( $data['user']['dn'] ?? '' );
+            $ip    = esc_html( $data['ip'] ?? '' );
+            $ua    = esc_html( $data['ua'] ?? '' );
+            $ts    = !empty($data['ts']) ? date_i18n( 'Y-m-d H:i:s', (int)$data['ts'] ) : '';
+
+            // 남은 시간 계산 (timeout transient에서 만료시각 가져옴)
+            $timeout_name = '_transient_timeout_lg_sess_' . $token;
+            $exp_ts = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $timeout_name
+            ) );
+            $remain = $exp_ts ? max(0, $exp_ts - time()) : 0;
+            $remain_h = floor($remain/3600);
+            $remain_m = floor(($remain%3600)/60);
+
+            echo '<tr>';
+            echo '<td><strong>'.$login.'</strong><br><span style="color:#6b7280">'.$email.'</span></td>';
+            echo '<td style="word-break:break-all">'.$dn.'</td>';
+            echo '<td><div>'.$ip.'</div><div style="max-width:320px;word-break:break-all;color:#6b7280">'.$ua.'</div></td>';
+            echo '<td>'.$ts.'</td>';
+            echo '<td>'.($remain_h ? $remain_h.'h ' : '').$remain_m.'m</td>';
+            echo '<td>';
+                echo '<form method="post" action="'.esc_url(admin_url('admin-post.php')).'">';
+                wp_nonce_field('lg_kill_sess');
+                echo '<input type="hidden" name="action" value="lg_kill_sess">';
+                echo '<input type="hidden" name="lg_token" value="'.esc_attr($token).'">';
+                submit_button( __( 'Force Logout', 'ldap-gatekeeper' ), 'secondary', '', false );
+                echo '</form>';
+            echo '</td>';
+            echo '</tr>';
+        }
+
+        echo '</tbody></table>';
+        } else {
+        echo '<p>'.esc_html__('No active sessions found.','ldap-gatekeeper').'</p>';
+        }
+
     }
     public static function metabox() {
         add_meta_box( 'lg_metabox', __( 'LDAP Gatekeeper', 'ldap-gatekeeper' ), [ __CLASS__, 'metabox_cb' ], 'page', 'side', 'default' );
@@ -157,4 +238,34 @@ class Admin {
         wp_safe_redirect( admin_url('options-general.php?page=lg-settings&lg_status=success&lg_msg='.rawurlencode(__('Test log cleared.','ldap-gatekeeper'))) );
         exit;
     }
+
+    public static function handle_kill_sess() {
+        if ( ! current_user_can('manage_options') ) wp_die( __('Insufficient permissions','ldap-gatekeeper') );
+        check_admin_referer('lg_kill_sess');
+
+        $token = isset($_POST['lg_token']) ? sanitize_text_field($_POST['lg_token']) : '';
+        if ( $token ) {
+            delete_transient('lg_sess_' . $token);
+        }
+        wp_safe_redirect( admin_url('options-general.php?page=lg-settings&lg_status=success&lg_msg='.rawurlencode(__('Session terminated.','ldap-gatekeeper'))) );
+        exit;
+        }
+
+        public static function handle_kill_all() {
+        if ( ! current_user_can('manage_options') ) wp_die( __('Insufficient permissions','ldap-gatekeeper') );
+        check_admin_referer('lg_kill_all');
+
+        global $wpdb;
+        $like = $wpdb->esc_like('_transient_lg_sess_') . '%';
+        $rows = $wpdb->get_col( $wpdb->prepare("SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $like) );
+        if ( $rows ) {
+            foreach ( $rows as $name ) {
+            $token = substr( $name, strlen('_transient_lg_sess_') );
+            delete_transient('lg_sess_' . $token);
+            }
+        }
+        wp_safe_redirect( admin_url('options-general.php?page=lg-settings&lg_status=success&lg_msg='.rawurlencode(__('All sessions terminated.','ldap-gatekeeper'))) );
+        exit;
+    }
+
 }
