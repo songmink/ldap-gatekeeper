@@ -50,7 +50,8 @@ class Guard {
         $session = self::current_session(); 
         if ( $session ) return;
 
-        status_header( 401 ); nocache_headers();
+        //status_header( 401 ); 
+        nocache_headers();
         $error = isset($_GET['lg_err']) ? sanitize_text_field(wp_unslash($_GET['lg_err'])) : '';
         self::render_login( $error ); 
         exit;
