@@ -29,3 +29,14 @@ define( 'WP_ENVIRONMENT_TYPE', 'staging' ); // or 'production', 'development', '
 ## Notes
 - No WordPress user login is performed; the plugin manages its own session cookie.
 - Connection Test includes a live log and a “Clear Test Log” button.
+
+## Theme Compatibility Notes
+
+### Using Divi or Similar Visual Builder Themes
+- Divi’s **Dynamic CSS** and **Static CSS File Generation** features can conflict with LDAP-gated pages that issue redirects or non-200 responses (such as login forms).
+- When using **Divi**:
+  - Set **Dynamic CSS** to **Disabled** under  
+    *Divi → Theme Options → Builder → Advanced → Dynamic CSS*.
+  - Clear the Divi builder cache after making this change.
+- Avoid programmatically controlling Divi’s CSS system from this plugin. Future Divi updates may alter hooks and cause unexpected errors.
+- Similar builder frameworks (Elementor Pro, Avada, etc.) may require comparable adjustments when using page-level LDAP gating.

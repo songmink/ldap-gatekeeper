@@ -20,3 +20,13 @@ add_action( 'plugins_loaded', function() {
     \LG\Admin::init();
     \LG\Guard::init();
 } );
+
+// Disable Divi's generated/cached CSS ONLY on gated + unauthenticated requests.
+add_action('after_setup_theme', function () {
+    if ( class_exists('\LG\Guard') && \LG\Guard::should_disable_divi_css() ) {
+        // ① 생성 단계에서 막기 (필터)
+        add_filter('et_use_dynamic_css', function(){ return false; }, 99);
+        add_filter('et_core_enable_static_css_file_generation', function(){ return false; }, 99);
+        add_filter('et_load_unified_styles', function(){ return false; }, 99);
+    }
+}, 1);
