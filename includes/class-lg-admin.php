@@ -164,11 +164,7 @@ class Admin {
 
             // Convert stored UTC timestamp to WordPress timezone for display
             $ts = '';
-            if ( ! empty( $data['ts'] ) ) {
-                $utc_ts = (int) $data['ts'];
-                $local_ts = get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $utc_ts ), 'U' );
-                $ts = date_i18n( 'Y-m-d H:i:s', $local_ts );
-            }
+            $ts = ! empty( $data['ts'] ) ? wp_date( 'Y-m-d H:i:s', (int) $data['ts'] ) : '';
 
             $timeout_name = '_transient_timeout_lg_sess_' . $token;
             $exp_ts = (int) $wpdb->get_var( $wpdb->prepare(
