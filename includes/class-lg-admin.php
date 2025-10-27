@@ -162,11 +162,20 @@ class Admin {
             $ua    = esc_html( $data['ua'] ?? '' );
             $ts    = !empty($data['ts']) ? date_i18n( 'Y-m-d H:i:s', (int)$data['ts'] ) : '';
 
-            // 남은 시간 계산 (timeout transient에서 만료시각 가져옴)
+            // Convert stored UTC timestamp to WordPress timezone for display
+            $ts = '';
+            if ( ! empty( $data['ts'] ) ) {
+                $utc_ts = (int) $data['ts'];
+                $local_ts = get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $utc_ts ), 'U' );
+                $ts = date_i18n( 'Y-m-d H:i:s', $local_ts );
+            }
+
             $timeout_name = '_transient_timeout_lg_sess_' . $token;
             $exp_ts = (int) $wpdb->get_var( $wpdb->prepare(
-            "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $timeout_name
+                "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s",
+                $timeout_name
             ) );
+
             $remain = $exp_ts ? max(0, $exp_ts - time()) : 0;
             $remain_h = floor($remain/3600);
             $remain_m = floor(($remain%3600)/60);
