@@ -157,8 +157,8 @@ class Admin {
             $dn    = esc_html( $data['user']['dn'] ?? '' );
             $ip    = esc_html( $data['ip'] ?? '' );
             $ua    = esc_html( $data['ua'] ?? '' );
-            $ts    = !empty($data['ts']) ? date_i18n( 'Y-m-d H:i:s', (int)$data['ts'] ) : '';
-
+            $ts = ! empty( $data['ts'] ) ? wp_date( 'Y-m-d H:i:s', (int) $data['ts'] ) : '';
+            
             // Convert stored UTC timestamp to WordPress timezone for display
             $timeout_name = '_transient_timeout_lg_sess_' . $token;
             $exp_ts = (int) $wpdb->get_var( $wpdb->prepare(
