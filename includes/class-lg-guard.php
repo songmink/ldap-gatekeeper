@@ -85,11 +85,89 @@ class Guard {
         wp_safe_redirect( self::clean_url( $redirect ) );
         exit;
     }
+
+    
+    // 
+    // Display session info for the current user session.
+    // 
+    public static function session_info(): ?array {
+        // 
+        $cookie_name = self::session_key();
+
+        if ( ! isset($_COOKIE[$cookie_name]) || ! is_string($_COOKIE[$cookie_name]) ) {
+            return null;
+        }
+
+        $token = sanitize_text_field( wp_unslash( $_COOKIE[$cookie_name] ) );
+        if ( $token === '' ) {
+            return null;
+        }
+
+        // 
+        $data = get_transient( 'lg_sess_' . $token );
+        if ( ! is_array($data) || empty($data['user']) ) {
+            return null;
+        }
+
+        // 
+        global $wpdb;
+        $timeout_name = '_transient_timeout_lg_sess_' . $token;
+        $exp_ts = (int) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s",
+                $timeout_name
+            )
+        );
+        if ( ! $exp_ts ) {
+            return null;
+        }
+
+        $remaining = max(0, $exp_ts - time());
+
+        return [
+            'login'     => (string) ( $data['user']['login'] ?? '' ),
+            'email'     => (string) ( $data['user']['email'] ?? '' ),
+            'dn'        => (string) ( $data['user']['dn'] ?? '' ),
+            'exp_ts'    => $exp_ts,
+            'remaining' => $remaining,
+        ];
+    }
+
     public static function handle_logout() {
-        check_admin_referer( 'lg_logout' );
-        self::clear_session();
-        $back = isset($_GET['redirect_to']) ? esc_url_raw($_GET['redirect_to']) : home_url('/');
-        wp_safe_redirect( self::clean_url($back) );
+
+        //$redirect = wp_get_referer() ?: home_url('/');
+        $redirect = home_url('/');
+
+        if ( isset($_REQUEST['_wpnonce']) ) {
+            check_admin_referer('lg_logout');
+        }
+
+        $cookie_name = self::session_key();
+        $token = '';
+        if ( isset($_COOKIE[$cookie_name]) && is_string($_COOKIE[$cookie_name]) ) {
+            $token = sanitize_text_field( wp_unslash($_COOKIE[$cookie_name]) );
+        }
+
+        if ( $token !== '' ) {
+            delete_transient( 'lg_sess_' . $token );
+
+            // Clear the cookie
+            setcookie(
+                $cookie_name,
+                '',
+                [
+                    'expires'  => time() - 3600,
+                    'path'     => COOKIEPATH ?: '/',
+                    'secure'   => is_ssl(),
+                    'httponly' => true,
+                    'samesite' => 'Lax',
+                ]
+            );
+        }
+
+        nocache_headers();
+        wp_safe_redirect( $redirect );
         exit;
     }
+
 }
