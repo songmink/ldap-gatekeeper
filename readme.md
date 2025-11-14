@@ -2,7 +2,7 @@
 
 **Description:** Page-level LDAP gate with plugin-managed session and clean redirects  
 **Author:** Songmin Kim with ChatGPT 5  
-**Version:** 0.2.6
+**Version:** 0.9.1
 
 ## What's new in 0.2.6
 - Environment-aware TLS: in `staging/development`, TLS cert validation is relaxed; in `production`, strict validation is enforced.
@@ -18,6 +18,16 @@
 Copy the template to your theme:
 ```
 yourtheme/ldap-gatekeeper/login-form.php
+yourtheme/ldap-gatekeeper/session-banner.php
+```
+
+## Session information
+ `$lg_session` data
+```
+$lg_session['info']['login']
+$lg_session['info']['email']
+$lg_session['remaining']
+$lg_session['logout_url'] (
 ```
 
 ## Environment type

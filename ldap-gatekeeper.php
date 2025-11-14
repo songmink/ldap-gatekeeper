@@ -26,94 +26,56 @@ add_action( 'admin_post_nopriv_lg_logout', [ 'LG\\Guard', 'handle_logout' ] );
 add_action( 'admin_post_lg_logout',        [ 'LG\\Guard', 'handle_logout' ] );
 
 /**
- * Display plugin-level LDAP login status banner in the front-end header.
+ * Render session banner via template (theme overrideable).
+ *
+ * @param array $info  session_info() 결과
  */
-add_action('wp_head', function () {
-
-    echo "<!-- LG wp_head test -->\n";
-
-    if ( ! class_exists('LG\\Guard') ) return;
-
-    $info = \LG\Guard::session_info();
-    if ( ! $info ) return; // not logged in → do nothing
-
-    $remain = (int) $info['remaining'];
-    $mm = floor($remain / 60);
-    $ss = $remain % 60;
-
+function lg_render_session_banner( array $info ) {
+    // 세션 만료까지 남은 시간 계산
+    $remain   = (int) ($info['remaining'] ?? 0);
+    $mm       = floor($remain / 60);
+    $ss       = $remain % 60;
     $logout_url = wp_nonce_url(
         admin_url('admin-post.php?action=lg_logout'),
         'lg_logout'
     );
-    ?>
 
-    <style>
-        .lg-session-banner {
-            position: fixed;
-            top: 14px;
-            right: 14px;
-            background: rgba(0,0,0,0.75);
-            color: #fff;
-            padding: 8px 14px;
-            border-radius: 8px;
-            font-size: 13px;
-            line-height: 1.3;
-            z-index: 999999;
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            backdrop-filter: blur(4px);
-        }
-        .lg-session-banner strong { color: #fff; }
-        .lg-session-banner .lg-email { color: #cbd5e1; }
-        .lg-session-banner a.lg-logout {
-            color: #93c5fd;
-            text-decoration: none;
-            padding: 2px 6px;
-            border-radius: 4px;
-            border: 1px solid #60a5fa;
-            font-size: 12px;
-        }
-        .lg-session-banner a.lg-logout:hover {
-            background: #60a5fa;
-            color: #000;
-        }
-    </style>
+    // 템플릿 변수 세팅
+    $lg_session = [
+        'info'       => $info,
+        'remaining'  => $remain,
+        'mm'         => $mm,
+        'ss'         => $ss,
+        'logout_url' => $logout_url,
+    ];
 
-    <div class="lg-session-banner">
-       <strong><?php echo esc_html( $info['login'] ); ?></strong> 
+    // 1) 테마 템플릿(오버라이드) 먼저 찾기
+    $theme_template = locate_template( 'ldap-gatekeeper/session-banner.php' );
 
-       <!--
-        <?php if (!empty($info['email'])): ?>
-            <span class="lg-email">(<?php echo esc_html($info['email']); ?>)</span>
-        <?php endif; ?>
-        -->
+    if ( $theme_template && file_exists( $theme_template ) ) {
+        // 테마 오버라이드 사용
+        $template = $theme_template;
+    } else {
+        // 2) 플러그인 기본 템플릿 사용
+        $template = __DIR__ . '/templates/session-banner.php';
+    }
 
-        <span id="lg-remaining">
-            · <?php echo sprintf("%02d:%02d", $mm, $ss); ?> left
-        </span>
+    // 템플릿 안에서 $lg_session 쓸 수 있게 만들기
+    if ( file_exists( $template ) ) {
+        /** @var array $lg_session */
+        include $template;
+    }
+}
 
-        <a class="lg-logout" href="<?php echo esc_url($logout_url); ?>">Logout</a>
-    </div>
 
-    <script>
-    (function(){
-        var el = document.getElementById('lg-remaining');
-        if (!el) return;
-        var secs = <?php echo (int) $info['remaining']; ?>;
+/**
+ * Display plugin-level LDAP login status banner in the front-end header.
+ */
+add_action('wp_head', function () {
+    if ( ! class_exists('LG\\Guard') ) return;
 
-        function tick() {
-            if (secs <= 0) return;
-            secs--;
-            var mm = String(Math.floor(secs / 60)).padStart(2,'0');
-            var ss = String(secs % 60).padStart(2,'0');
-            el.textContent = '· ' + mm + ':' + ss + ' left';
-            setTimeout(tick, 1000);
-        }
+    $info = \LG\Guard::session_info();
+    if ( ! $info ) return;
 
-        setTimeout(tick, 1000);
-    })();
-    </script>
-
-    <?php
+    lg_render_session_banner( $info );
 });
